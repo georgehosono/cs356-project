@@ -27,6 +27,7 @@ async def query_flex_api(dir_name):
 
 
 async def query_v2_api(dir_name):
+    checked_domains= set()
     files = os.listdir(dir_name)
     headers = {"X-API-Key": API_KEY}
     async with aiohttp.ClientSession(FARSIGHT_URL, headers=headers) as session:
@@ -39,7 +40,13 @@ async def query_v2_api(dir_name):
                         data = json.loads(line)
                         if "cond" in data.keys():
                             continue
+
                         domain_name = data["obj"]["rrname"]
+                        if domain_name in checked_domains:
+                            continue
+                        else:
+                            checked_domains.add(domain_name)
+
                         current_query = f"/dnsdb/v2/lookup/rrset/name/{domain_name}/TXT"
                         async with session.get(current_query) as res:
                             async for line in res.content:
