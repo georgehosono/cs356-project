@@ -6,6 +6,7 @@ import json
 import logging
 
 FARSIGHT_URL = "https://api.dnsdb.info"
+#FARSIGHT_URL = "https://pokeapi.co"
 API_KEY = "TODO: GET API KEY"
 LIMIT = 100000
 
@@ -35,8 +36,10 @@ async def query_flex_api(dir_name):
     headers = {"X-API-Key": API_KEY}
     async with aiohttp.ClientSession(FARSIGHT_URL, headers=headers) as session:
         i = 0
+        #i = 1
         while True:
             current_query = f"/dnsdb/v2/glob/rrset/*._domainkey.*/TXT?limit={LIMIT}&offset={i}"
+            #current_query = f"/api/v2/berry/{i}"
             async with session.get(current_query) as res:
                 if not res.ok:
                     break
@@ -77,22 +80,26 @@ async def query_v2_api(dir_name):
                         checked_domains.add(domain_name)
 
                     current_query = f"/dnsdb/v2/lookup/rrset/name/{domain_name}/TXT"
+                    print(f"querying {domain_name}")
                     async with session.get(current_query) as res:
                         async for line in res.content:
                             line = line.decode("utf-8")
                             logger.info(line)
+
+
+async def query_both(dir_name):
+    # this first call will populate the directory with one file per successfully
+    # queried offset. Each file contains newline-delimited JSON.
+    await query_flex_api(dir_name)
+
+    # this function will read the files in the directory and populate a single
+    # newline-delimited JSON file with the richer results for each selector
+    # query identified in the first call.
+    await query_v2_api(dir_name)
 
 if __name__ == "__main__":
     timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     dir_name = f"{timestamp}_flex_results"
     os.makedirs(dir_name)
 
-    # this first call will populate the directory with one file per successfully
-    # queried offset. Each file contains newline-delimited JSON.
-    await asyncio.run(query_flex_api(dir_name))
-
-    # this function will read the files in the directory and populate a single
-    # newline-delimited JSON file with the richer results for each selector
-    # query identified in the first call.
-    await asyncio.run(query_v2_api(dir_name))
-
+    asyncio.run(query_both(dir_name))
